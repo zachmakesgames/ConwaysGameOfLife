@@ -21,8 +21,8 @@ namespace GameOfLife
 
 
         //Board dimensions
-        int DIMENSIONX = 64;
-        int DIMENSIONY = 64;
+        int DIMENSIONX = 128;
+        int DIMENSIONY = 128;
 
 
         //Generation arrays
@@ -542,6 +542,7 @@ namespace GameOfLife
                         Console.WriteLine("Waiting for workers to finish");
                         WorkBarrier.SignalAndWait();
 
+
                         Console.WriteLine("Processing data");
                         //Process the results from the worker threads.
 
@@ -664,34 +665,47 @@ namespace GameOfLife
                 while (true)
                 {
                     PrepBarrier.SignalAndWait();
-                    WorkOrder w = null;
-                    lock (queueLock)
+
+                    //This second loop is necessary so that the worker thread keeps trying to
+                    //consume data if there is data left on the queue. The previous version
+                    //worked only because there were 8 threads and exactly 8 pieces of work to
+                    //be done each frame. If the grid was increased in size it would break because
+                    //not all of the work would be done each frame. This fixes that issue.
+                    while (true)
                     {
-                        if (WorkQueue.Count > 0)
+                        WorkOrder w = null;
+                        lock (queueLock)
                         {
-                            //grab the work
-                            w = WorkQueue.Dequeue();
-                        }
-                    }
-                    Console.WriteLine("Thread: " + myID.ToString() + " has acquired its lock and will begin working");
-                    
-
-
-                    if (w != null)
-                    {
-                        //Process the work order.
-
-                        for(int i = w.rowIndex; i < w.rowIndex + w.rowCount; ++i)
-                        {
-                            for(int j = 0; j < DIMENSIONY; ++j)
+                            if (WorkQueue.Count > 0)
                             {
-                                if(b1[i,j] == 1)
+                                //grab the work
+                                w = WorkQueue.Dequeue();
+                            }
+                            else
+                            {
+                                break;
+                            }
+                        }
+                        Console.WriteLine("Thread: " + myID.ToString() + " has acquired its lock and will begin working");
+
+
+
+                        if (w != null)
+                        {
+                            //Process the work order.
+
+                            for (int i = w.rowIndex; i < w.rowIndex + w.rowCount; ++i)
+                            {
+                                for (int j = 0; j < DIMENSIONY; ++j)
                                 {
-                                    ProcessAlivePixel(i,j);
-                                }
-                                else
-                                {
-                                    ProcessDeadPixel(i,j);
+                                    if (b1[i, j] == 1)
+                                    {
+                                        ProcessAlivePixel(i, j);
+                                    }
+                                    else
+                                    {
+                                        ProcessDeadPixel(i, j);
+                                    }
                                 }
                             }
                         }
